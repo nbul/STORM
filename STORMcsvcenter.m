@@ -2,36 +2,59 @@ clear all
 close all
 
 bin_size = 2;
-%dist_length = 250;
-cutoff =0.95;
-Column_intensity = 5;
+min_size = 50;
+cutoff =0.9;
+Column_intensity = 18;
 
 cd('STORMcsv/');
 files = dir('*.csv');
 cd('../');
 sum_ring = zeros(512,512);
-
+%% Finding the center
 for i=1:numel(files)
+    clear test_k silh
     cd('STORMcsv/');
     Number1 = [num2str(i),'.csv'];
     Ring{i} = csvread(Number1, 1, 1);
+    coordinates{i} = [Ring{i}(:,3) Ring{i}(:,4)];
+    for q=8:12
+        test_k(q-7,:) = kmeans(coordinates{i},q);
+        silh(q-7) = mean(silhouette(coordinates{i},test_k(q-7,:)));
+    end
+    [num1 idx1] = max(silh);
+    ClusterNumber(i) = idx1+7;
+    counter=zeros(ClusterNumber(i),numel(files));
+    IntensityCluster{i}=zeros(ClusterNumber(i),1);
+    [Cluster{i},Centroid{i}]= kmeans(coordinates{i},ClusterNumber(i));
+    coordinates2{i} = [Cluster{i} coordinates{i}];
+    for k=1:ClusterNumber(i)
+        IntensityCluster{i}(k) = sum(Ring{i}(Cluster{i}(:,1)==k,Column_intensity));
+        for l=1:length(Cluster{i})
+            if Cluster{i}(l)==k
+                counter(k,i)=counter(k,i)+1;
+            end
+        end
+    end
     cd('../');
-    Ring_binned = hist3(Ring{i}(:,3:4), {min(Ring{i}(:,3)) : bin_size : max(Ring{i}(:,3)) min(Ring{i}(:,4)) : bin_size : max(Ring{i}(:,4))});
-    Ring_binned_bw = im2bw(Ring_binned);
-    o = regionprops (uint8(Ring_binned_bw), 'centroid');
-    center = cat(1, o.Centroid);
-    centerX = min(Ring{i}(:,3)) + center(1) * bin_size;
-    centerY = min(Ring{i}(:,4)) + center(2) * bin_size;
-    distances{i} = sqrt((Ring{i}(:,3)-centerX).*(Ring{i}(:,3)-centerX) + (Ring{i}(:,4)-centerY).*(Ring{i}(:,4)-centerY));
-end
-for i=1:numel(files)
-    max_temp(i) = max(distances{i});
+    ClusterNames = [1:1:ClusterNumber(i)];
+    Centroid{i} = [Centroid{i} ClusterNames'];
+    [RemoveNum1 RemoveIdx1(i,1)] = min(IntensityCluster{i});
+    IntensityCluster2{i}=IntensityCluster{i};
+    IntensityCluster2{i}(RemoveIdx1(i,1),:) = [];
+    Centroid{i}(RemoveIdx1(i,1),:) = [];
+    coordinates2{i}(any(coordinates2{i}==RemoveIdx1(i,1),2),:) = [];
+    [RemoveNum1 Idxtemp] = min(IntensityCluster2{i});
+    RemoveIdx1(i,2) = Centroid{i}(Idxtemp,3);
+    Centroid{i}(Idxtemp,:) = [];
+    coordinates2{i}(any(coordinates2{i}==RemoveIdx1(i,2),2),:) = [];
+    
+    [centerX(i),centerY(i),Rfit(i)] = circfit(Centroid{i}(:,1),Centroid{i}(:,2));
+    distances{i} = sqrt((Ring{i}(:,3)-centerX(i)).*(Ring{i}(:,3)-centerX(i)) + (Ring{i}(:,4)-centerY(i)).*(Ring{i}(:,4)-centerY(i)));
 end
 
-dist_length = ceil(max(max_temp)/2)+1;
+dist_length = ceil(max(Rfit)*2);
 binrange = [0 : bin_size : dist_length];
 bincenter=binrange(1:(end-1)) + bin_size/2;
-
 
 for i=1:numel(files)
     clear distances_indexed distances_added
@@ -49,17 +72,16 @@ for i=1:numel(files)
     end
     
     total = sum(distances_added);
-    temp = zeros(dist_length-length(bincenter),1);
-    for k=1:dist_length
+    for k=1:length(bincenter)
         distances_added_norm(k,1) = (k-1)* bin_size + bin_size/2;
     end
-    distances_added_norm(:,i+1) = [distances_added(:,2)/total(2); temp];
+    distances_added_norm(:,i+1) = distances_added(:,2)/total(2);
 end
-        
+
 %% Getting the radius individual rings and selecting rings
 image1 = figure;
 counter = 0;
-binsnew = [1:dist_length];
+binsnew = [1:length(bincenter)];
 usage = zeros(numel(files)+1,1);
 for i=1:numel(files)
     % normalize y to be a probability (sum = 1)
@@ -79,13 +101,13 @@ for i=1:numel(files)
         end
     % plot data and theoretical distribution
     subplot(4, ceil(numel(files)/4),i);
-    plot(binsnew', p{i}, 'o', binsnew', pth{i});
+    plot(binsnew'*bin_size, p{i}, 'o', binsnew'*bin_size, pth{i});
     title(num2str(pvalue(i)));
     hold on;
     %[bestfit,resid]=nlinfit(y, x, norm_func, initGuess);
 end        
 %% Getting summarized distribution
-sum_intensity = zeros(dist_length,1);
+sum_intensity = zeros(length(bincenter),1);
 
 
 for i=1:counter
@@ -105,7 +127,7 @@ chi_square(numel(files)+1) = sum( resudials{numel(files)+1}.*resudials{numel(fil
 pvalue(numel(files)+1) = 1-chi2cdf(chi_square(numel(files)+1), 2);
 % plot data and theoretical distribution
 subplot(4, ceil(numel(files)/4),numel(files)+1);
-plot(binsnew', p{numel(files)+1}, 'o', binsnew', pth{numel(files)+1});
+plot(binsnew'*bin_size, p{numel(files)+1}, 'o', binsnew'*bin_size, pth{numel(files)+1});
 title(num2str(pvalue(numel(files)+1)));
 
 cd('STORMcsv/');
@@ -126,16 +148,16 @@ csvwrite('radiuses.csv', peaks);
 cd('../../');
 
 %% Making summarized ring
-final_ring = zeros(dist_length*2,dist_length*2);
-final_ring_fitted = zeros(dist_length*2,dist_length*2);
-[columnsInImage rowsInImage] = meshgrid(1:(dist_length*2), 1:(dist_length*2));
+final_ring = zeros(length(bincenter)*2,length(bincenter)*2);
+final_ring_fitted = zeros(length(bincenter)*2,length(bincenter)*2);
+[columnsInImage rowsInImage] = meshgrid(1:(length(bincenter)*2), 1:(length(bincenter)*2));
 
-for r=dist_length:-1:1
-    centerX2 = dist_length;
-    centerY2 = dist_length;
+for r=length(bincenter):-1:1
+    centerX2 = length(bincenter);
+    centerY2 = length(bincenter);
     circlePixels = (rowsInImage - centerY2).^2 + (columnsInImage - centerX2).^2 <= r.^2;
-    for l=1:(dist_length*2)
-        for n = 1:(dist_length*2)
+    for l=1:(length(bincenter)*2)
+        for n = 1:(length(bincenter)*2)
             if circlePixels(l,n) == 1
                 final_ring(l,n) = abs(sum_intensity(r)/max(sum_intensity));
                 final_ring_fitted(l,n) = abs(pth{numel(files)+1}(r)/max(pth{numel(files)+1}));
@@ -152,3 +174,24 @@ cd('STORMcsv/result/');
 print(image2, 'summarized_ring.tif', '-dtiff', '-r150');
 print(image3, 'summarized_ring_fitted.tif', '-dtiff', '-r150');
 cd('../../');
+
+% figure;
+% l=0;
+% for n=1:ClusterNumber(i)
+%     if (n~=RemoveIdx1(i,1) && n~=RemoveIdx1(i,2))
+%         plot(coordinates2{i}(coordinates2{i}(:,1)==n,2),coordinates2{i}(coordinates2{i}(:,1)==n,3),'*')
+%         hold on
+%         l=l+1;
+%         plot(Centroid{i}(Centroid{i}(:,3)==n,1),Centroid{i}(Centroid{i}(:,3)==n,2),'k+','MarkerSize', 15)
+%         hold on
+%     end
+% end
+% rectangle('position',[centerX(i)-Rfit(i),centerY(i)-Rfit(i),Rfit(i)*2,Rfit(i)*2],...
+%     'curvature',[1,1],'linestyle','-','edgecolor','r');
+% hold off
+% figure;
+% for n=1:10
+%     plot(coordinates{i}(Cluster{i}==n,1),coordinates{i}(Cluster{i}==n,2),'*')
+%     hold on
+% end
+% hold off
