@@ -2,6 +2,7 @@ clear all
 close all
 
 bin_size = 2;
+binAnlges = 8;
 min_size = 50;
 cutoff =0.9;
 Column_intensity = 18;
@@ -10,7 +11,9 @@ cd('STORMcsv/');
 files = dir('*.csv');
 cd('../');
 sum_ring = zeros(512,512);
+
 %% Finding the center
+
 for i=1:numel(files)
     clear test_k silh
     cd('STORMcsv/');
@@ -26,6 +29,7 @@ for i=1:numel(files)
     counter=zeros(ClusterNumber(i),numel(files));
     IntensityCluster{i}=zeros(ClusterNumber(i),1);
     [Cluster{i},Centroid{i}]= kmeans(coordinates{i},ClusterNumber(i));
+    Centroid2{i}= Centroid{i};
     coordinates2{i} = [Cluster{i} coordinates{i}];
     for k=1:ClusterNumber(i)
         IntensityCluster{i}(k) = sum(Ring{i}(Cluster{i}(:,1)==k,Column_intensity));
@@ -52,6 +56,7 @@ for i=1:numel(files)
     distances{i} = sqrt((Ring{i}(:,3)-centerX(i)).*(Ring{i}(:,3)-centerX(i)) + (Ring{i}(:,4)-centerY(i)).*(Ring{i}(:,4)-centerY(i)));
 end
 
+%% Individual distributions
 dist_length = ceil(max(Rfit)*2);
 binrange = [0 : bin_size : dist_length];
 bincenter=binrange(1:(end-1)) + bin_size/2;
@@ -175,6 +180,27 @@ print(image2, 'summarized_ring.tif', '-dtiff', '-r150');
 print(image3, 'summarized_ring_fitted.tif', '-dtiff', '-r150');
 cd('../../');
 
+%% Pairwise angles between clusters
+Angles_all = zeros(1,1);
+for i=1:numel(files)
+    CounterAngles = 0;
+    for k=1:(length(Centroid{i})-1)
+        V1 = [Centroid{i}(k,1)-centerX(i) Centroid{i}(k,2)-centerY(i) 0];
+        for m=(k+1):length(Centroid{i})
+            V2 = [Centroid{i}(m,1)-centerX(i) Centroid{i}(m,2)-centerY(i) 0];
+            CounterAngles = CounterAngles +1;
+            Angles{i}(CounterAngles,1) = atan2d(norm(cross(V1,V2)),dot(V1,V2));
+        end
+    end
+    Angles_all = [Angles_all; Angles{i}];
+end
+
+binrangeAngles = [0 : binAnlges : 180];
+bincenterAngles=binrangeAngles(1:(end-1)) + bin_size/2;
+[NAngles, binsAngles] = histc(Angles_all,binrangeAngles);
+figure; bar(binrangeAngles, NAngles);
+
+% %% Testing clustering
 % figure;
 % l=0;
 % for n=1:ClusterNumber(i)
