@@ -1,60 +1,4 @@
-clear all
-close all
-
-bin_size = 2;
-binAnlges = 4;
-min_size = 50;
-cutoff =0.9;
-Column_intensity = 18;
-
-cd('STORMcsv/');
-files = dir('*.csv');
-cd('../');
-sum_ring = zeros(512,512);
-
-%% Finding the center
-
-for i=1:numel(files)
-    clear test_k silh
-    cd('STORMcsv/');
-    Number1 = [num2str(i),'.csv'];
-    Ring{i} = csvread(Number1, 1, 1);
-    coordinates{i} = [Ring{i}(:,3) Ring{i}(:,4)];
-    for q=8:12
-        test_k(q-7,:) = kmeans(coordinates{i},q);
-        silh(q-7) = mean(silhouette(coordinates{i},test_k(q-7,:)));
-    end
-    [num1 idx1] = max(silh);
-    ClusterNumber(i) = idx1+7;
-    counter=zeros(ClusterNumber(i),numel(files));
-    IntensityCluster{i}=zeros(ClusterNumber(i),1);
-    [Cluster{i},Centroid{i}]= kmeans(coordinates{i},ClusterNumber(i));
-    Centroid2{i}= Centroid{i};
-    coordinates2{i} = [Cluster{i} coordinates{i}];
-    for k=1:ClusterNumber(i)
-        IntensityCluster{i}(k) = sum(Ring{i}(Cluster{i}(:,1)==k,Column_intensity));
-        for l=1:length(Cluster{i})
-            if Cluster{i}(l)==k
-                counter(k,i)=counter(k,i)+1;
-            end
-        end
-    end
-    cd('../');
-    ClusterNames = [1:1:ClusterNumber(i)];
-    Centroid{i} = [Centroid{i} ClusterNames'];
-    [RemoveNum1 RemoveIdx1(i,1)] = min(IntensityCluster{i});
-    IntensityCluster2{i}=IntensityCluster{i};
-    IntensityCluster2{i}(RemoveIdx1(i,1),:) = [];
-    Centroid{i}(RemoveIdx1(i,1),:) = [];
-    coordinates2{i}(any(coordinates2{i}==RemoveIdx1(i,1),2),:) = [];
-    [RemoveNum1 Idxtemp] = min(IntensityCluster2{i});
-    RemoveIdx1(i,2) = Centroid{i}(Idxtemp,3);
-    Centroid{i}(Idxtemp,:) = [];
-    coordinates2{i}(any(coordinates2{i}==RemoveIdx1(i,2),2),:) = [];
-    
-    [centerX(i),centerY(i),Rfit(i)] = circfit(Centroid{i}(:,1),Centroid{i}(:,2));
-    distances{i} = sqrt((Ring{i}(:,3)-centerX(i)).*(Ring{i}(:,3)-centerX(i)) + (Ring{i}(:,4)-centerY(i)).*(Ring{i}(:,4)-centerY(i)));
-end
+%% This script tests periodicity of clusters
 
 %% Pairwise angles between clusters (clean)
 Angles_all = zeros(1,1);
@@ -98,3 +42,45 @@ mkdir('result');
 cd('result/');
 csvwrite('angles.csv', Data_angles)
 cd('../../');
+[test, peakMag] = peakfinder(NAngles);
+
+anglerange = [0 : bin_size : 360];
+profile_all = zeros(180,1);
+all_peaks = [0, 0];
+for i=1:numel(files)
+    for m=1:length(Ring{i}(:,3))
+        if Ring{i}(m,3)>centerX(i)
+            angle{i}(m)= atand((Ring{i}(m,3)-centerX(i))./(Ring{i}(m,4)-centerY(i)));
+        else angle{i}(m)= 180 +atand((Ring{i}(m,3)-centerX(i))./(Ring{i}(m,4)-centerY(i)));
+        end
+    end
+    for k=1:length(angle{i})
+        if angle{i}(k)<0 angle{i}(k) = 270 - angle{i}(k);
+        end
+    end
+    [Allangles{i}, Anglesind{i}] = histc(angle{i},anglerange);
+    Allangles{i} = Allangles{i}(1:(end-1));
+    %figure; bar(anglerange(1:(end-1)), Allangles{i});
+    [PeakPos{i}, PeakMag{i}] = peakfinder(Allangles{i});
+    [strongpeak(i) peakindex(i)]= max(PeakMag{i});
+    shiftposition(i) = PeakPos{i}(peakindex(i));
+    
+    for s=0 : length( Allangles{i})-1
+        if s<shiftposition(i)
+             pr_reshaped{i}(180+s+1-shiftposition(i)) = Allangles{i}(s+1);
+         else
+             pr_reshaped{i}(s+1-shiftposition(i)) = Allangles{i}(s+1);
+         end
+     end
+     %figure; bar(anglerange(1:(end-1)), pr_reshaped{i});
+     [PeakPos2{i}, PeakMag2{i}] = peakfinder(pr_reshaped{i});
+     all_peaks = [all_peaks, PeakPos2{i}*bin_size];
+     
+     profile_all = profile_all + pr_reshaped{i}';
+end
+all_peaks_range = [0 : binAnlges : 360];
+all_peaks = all_peaks(all_peaks~=0);
+[all_peaks_hist,all_peaks_ind] = histc(all_peaks,all_peaks_range);
+figure; bar(all_peaks_range, all_peaks_hist);
+figure; bar(anglerange(1:(end-1)), profile_all);
+[PeakPos{numel(files)+1}, PeakMag{numel(files)+1}] = peakfinder(profile_all);
