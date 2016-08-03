@@ -4,7 +4,7 @@ close all
 bin_size = 2;
 binAnlges = 8;
 min_size = 50;
-cutoff =0.9;
+cutoff =0.90;
 Column_intensity = 18;
 
 cd('STORMcsv/');
@@ -20,9 +20,9 @@ for i=1:numel(files)
     Number1 = [num2str(i),'.csv'];
     Ring{i} = csvread(Number1, 1, 1);
     coordinates{i} = [Ring{i}(:,3) Ring{i}(:,4)];
-    for q=8:12
-        test_k(q-7,:) = kmeans(coordinates{i},q);
-        silh(q-7) = mean(silhouette(coordinates{i},test_k(q-7,:)));
+    for q=6:15
+        test_k(q-5,:) = kmeans(coordinates{i},q);
+        silh(q-5) = mean(silhouette(coordinates{i},test_k(q-5,:)));
     end
     [num1 idx1] = max(silh);
     ClusterNumber(i) = idx1+7;
@@ -91,23 +91,21 @@ usage = zeros(numel(files)+1,1);
 for i=1:numel(files)
     % normalize y to be a probability (sum = 1)
     p{i} = distances_added_norm(:,i+1);
-    % compute weighted mean and standard deviation
-    m{i} = sum(binsnew' .* p{i});
-    s{i} = sqrt(sum((binsnew' - m{i}) .^ 2 .* p{i}));
+    p{i} = p{i}/max(p{i});
+    [curve{i},gof{i}] = fit(binsnew'*bin_size,p{i},'gauss1');
+    radius(i) = curve{i}.b1;
+    sigma1(i) = sqrt(curve{i}.c1*curve{i}.c1/2);
+    pvalue(i) = gof{i}.rsquare;
     % compute theoretical probabilities
-    pth{i} = normpdf(binsnew, m{i}, s{i});
-    resudials{i} = p{i} - pth{i}';
-    chi_square(i) = sum( resudials{i}.*resudials{i})/max(pth{i});
-    pvalue(i) = 1-chi2cdf(chi_square(i), 2);
-        if pvalue(i) > cutoff
+        if gof{i}.rsquare > cutoff
             counter = counter + 1; 
             good_ring(counter) = i;
             usage(i) = 1;
         end
     % plot data and theoretical distribution
     subplot(4, ceil(numel(files)/4),i);
-    plot(binsnew'*bin_size, p{i}, 'o', binsnew'*bin_size, pth{i});
-    title(num2str(pvalue(i)));
+    plot(binsnew'*bin_size, p{i}, 'o', binsnew'*bin_size, curve{i}(binsnew'*bin_size));
+    title(num2str(gof{i}.rsquare));
     hold on;
     %[bestfit,resid]=nlinfit(y, x, norm_func, initGuess);
 end        
@@ -123,17 +121,26 @@ distances_added_norm(:,numel(files)+1) = sum_intensity;
 
 
 p{numel(files)+1} = sum_intensity / sum(sum_intensity);
-
-m{numel(files)+1} = sum(binsnew' .* p{numel(files)+1});
-s{numel(files)+1} = sqrt(sum((binsnew' - m{numel(files)+1}) .^ 2 .* p{numel(files)+1}));
-pth{numel(files)+1} = normpdf(binsnew, m{numel(files)+1}, s{numel(files)+1});
-resudials{numel(files)+1} = p{numel(files)+1} - pth{numel(files)+1}';
-chi_square(numel(files)+1) = sum( resudials{numel(files)+1}.*resudials{numel(files)+1})/max(pth{numel(files)+1});
-pvalue(numel(files)+1) = 1-chi2cdf(chi_square(numel(files)+1), 2);
+p{numel(files)+1} = p{numel(files)+1}/max(p{numel(files)+1});
+[curve{numel(files)+1},gof{numel(files)+1}] = fit(binsnew'*bin_size,p{numel(files)+1},'gauss1');
+radius(numel(files)+1) = curve{numel(files)+1}.b1;
+sigma1(numel(files)+1) = sqrt(curve{numel(files)+1}.c1*curve{numel(files)+1}.c1/2);
+pvalue(numel(files)+1) = gof{numel(files)+1}.rsquare;
+usage(numel(files)+1) = 1;
 % plot data and theoretical distribution
 subplot(4, ceil(numel(files)/4),numel(files)+1);
-plot(binsnew'*bin_size, p{numel(files)+1}, 'o', binsnew'*bin_size, pth{numel(files)+1});
-title(num2str(pvalue(numel(files)+1)));
+plot(binsnew'*bin_size, p{numel(files)+1}, 'o', binsnew'*bin_size, curve{numel(files)+1}(binsnew'*bin_size));
+title(num2str(gof{numel(files)+1}.rsquare));
+
+%% Curve fitting
+fo = fitoptions('Method','NonlinearLeastSquares', 'StartPoint', [curve{numel(files)+1}.a1 sigma1(numel(files)+1) curve{numel(files)+1}.b1]);
+ft = fittype('2*pi*A*exp(-(x*x + R*R)/(2*sigma*sigma))*besseli(0, (R*x/(sigma*sigma)))',...
+         'coefficients',{'A','sigma', 'R'},'independent','x','options',fo);
+[curve2,gof2] = fit(binsnew'*bin_size,p{numel(files)+1},ft);
+subplot(4, ceil(numel(files)/4),numel(files)+2);
+plot(binsnew'*bin_size, p{numel(files)+1}, 'o', binsnew'*bin_size, curve2(binsnew'*bin_size));
+title(num2str(gof2.rsquare));
+
 
 cd('STORMcsv/');
 mkdir('result');
@@ -144,9 +151,7 @@ cd('../../');
 
 %% Save means and SD
 Number2 = [1:(numel(files)+1)];
-m2 = cell2mat(m);
-s2 = cell2mat(s);
-peaks = [Number2' m2'*bin_size s2'*bin_size pvalue' usage];
+peaks = [Number2' radius' sigma1' pvalue' usage; numel(files)+2 curve2.R curve2.sigma gof2.rsquare 1];
 
 cd('STORMcsv/result/');
 csvwrite('radiuses.csv', peaks);
@@ -157,17 +162,13 @@ final_ring = zeros(length(bincenter)*2,length(bincenter)*2);
 final_ring_fitted = zeros(length(bincenter)*2,length(bincenter)*2);
 [columnsInImage rowsInImage] = meshgrid(1:(length(bincenter)*2), 1:(length(bincenter)*2));
 
-for r=length(bincenter):-1:1
-    centerX2 = length(bincenter);
-    centerY2 = length(bincenter);
-    circlePixels = (rowsInImage - centerY2).^2 + (columnsInImage - centerX2).^2 <= r.^2;
-    for l=1:(length(bincenter)*2)
-        for n = 1:(length(bincenter)*2)
-            if circlePixels(l,n) == 1
-                final_ring(l,n) = abs(sum_intensity(r)/max(sum_intensity));
-                final_ring_fitted(l,n) = abs(pth{numel(files)+1}(r)/max(pth{numel(files)+1}));
-            end
-        end
+centerX2 = length(bincenter);
+centerY2 = length(bincenter);
+sum_intensity = [sum_intensity; zeros(ceil(sqrt(2*length(bincenter)*length(bincenter))-length(sum_intensity))+1, 1)];
+for l=1:(length(bincenter)*2)
+    for n = 1:(length(bincenter)*2)
+            final_ring(l,n) = abs(sum_intensity(ceil(sqrt((l-centerX2)*(l-centerX2)+(n-centerY2)*(n-centerY2)))+1)/max(sum_intensity));
+            final_ring_fitted(l,n) = abs(curve2((ceil(sqrt((l-centerX2)*(l-centerX2)+(n-centerY2)*(n-centerY2)))+1)*bin_size)/max(curve2(binsnew'*bin_size)));
     end
 end
 
@@ -200,7 +201,7 @@ bincenterAngles=binrangeAngles(1:(end-1)) + bin_size/2;
 [NAngles, binsAngles] = histc(Angles_all,binrangeAngles);
 figure; bar(binrangeAngles, NAngles);
 
-% %% Testing clustering
+% % Testing clustering
 % figure;
 % l=0;
 % for n=1:ClusterNumber(i)

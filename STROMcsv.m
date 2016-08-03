@@ -97,16 +97,25 @@ distances_added_norm(:,numel(files)+1) = sum_intensity;
 
 p{numel(files)+1} = sum_intensity / sum(sum_intensity);
 
-m{numel(files)+1} = sum(binsnew' .* p{numel(files)+1});
-s{numel(files)+1} = sqrt(sum((binsnew' - m{numel(files)+1}) .^ 2 .* p{numel(files)+1}));
-pth{numel(files)+1} = normpdf(binsnew, m{numel(files)+1}, s{numel(files)+1});
-resudials{numel(files)+1} = p{numel(files)+1} - pth{numel(files)+1}';
-chi_square(numel(files)+1) = sum( resudials{numel(files)+1}.*resudials{numel(files)+1})/max(pth{numel(files)+1});
-pvalue(numel(files)+1) = 1-chi2cdf(chi_square(numel(files)+1), 2);
+[curve1,gof1] = fit(binsnew',p{numel(files)+1},'gauss1');
+
 % plot data and theoretical distribution
 subplot(4, ceil(numel(files)/4),numel(files)+1);
-plot(binsnew', p{numel(files)+1}, 'o', binsnew', pth{numel(files)+1});
+plot(binsnew', p{numel(files)+1}, 'o', binsnew', curve1(binsnew'));
 title(num2str(pvalue(numel(files)+1)));
+
+
+
+%% Curve fitting
+A = normpdf(m{numel(files)+1}, m{numel(files)+1},s{numel(files)+1});
+sigma = s{numel(files)+1};
+fo = fitoptions('Method','NonlinearLeastSquares', 'StartPoint', m{numel(files)+1});
+ft = fittype('2*pi*A*exp(-(x*x + R*R)/(2*sigma*sigma))*besseli(0, (R*x/(sigma*sigma)))',...
+        'problem', {'A','sigma'}, 'coefficients','R','independent','x','options',fo);
+[curve2,gof2] = fit(binsnew',p{numel(files)+1},ft, 'problem', {A,sigma});
+subplot(4, ceil(numel(files)/4),numel(files)+2);
+plot(binsnew', p{numel(files)+1}, 'o', binsnew', curve2(binsnew'));
+title(num2str(gof2.rsquare));
 
 cd('STORMcsv/');
 mkdir('result');
@@ -114,7 +123,6 @@ cd('result/');
 print(image1, 'summarized_distributions.tif', '-dtiff', '-r150');
 csvwrite('distributions.csv', peaks)
 cd('../../');
-
 %% Save means and SD
 Number2 = [1:(numel(files)+1)];
 m2 = cell2mat(m);
