@@ -1,5 +1,11 @@
 %% This script tests periodicity of clusters
 
+%% Assign memory
+% Angles{i}
+% Angles_all
+% Angles2{i}
+% Angles_all2
+
 %% Pairwise angles between clusters (clean)
 Angles_all = zeros(1,1);
 for i=1:numel(files)
@@ -15,7 +21,7 @@ for i=1:numel(files)
     Angles_all = [Angles_all; Angles{i}];
 end
 
-binrangeAngles = [0 : binAnlges : 180];
+binrangeAngles = 0 : binAnlges : 180;
 bincenterAngles=binrangeAngles(1:(end-1)) + bin_size/2;
 [NAngles, binsAngles] = histc(Angles_all,binrangeAngles);
 

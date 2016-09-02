@@ -1,19 +1,36 @@
-clear all
+clc
+clear variables
 close all
 
 bin_size = 2;
 binAnlges = 8;
 min_size = 50;
-cutoff =0.90;
 Column_intensity = 18;
 
-cd('STORMcsv/');
-files = dir('*.csv');
-cd('../');
+%% Defining extension
+% Default cutoff
+cutoff =0.80;
+
+usedefault = questdlg(strcat('Use default settings (Cut-off value = ', num2str(cutoff),'?)'),'Settings','Yes','No','Yes');
+if strcmp(usedefault, 'No');
+    parameters = inputdlg({'Enter cut-off value:'},'Parameters',1,{num2str(cutoff)});
+    % Redefine extension 
+    cutoff = str2double(parameters{1});
+else
+    parameters{1} = num2str(cutoff);
+end
+
+%% Determening paths
+currdir = pwd;
+filedir = uigetdir();
+files = dir(strcat(filedir,'/*.csv'));
+cd(filedir);
+mkdir(filedir,'/results');
+resultdir = [filedir, '/results'];
 sum_ring = zeros(512,512);
 
 %% Finding the center
-
+cd(currdir);
 STORMcsvcenter;
 
 %% Individual distributions and gaussian
@@ -26,27 +43,31 @@ STORMcurve;
 
 
 %% Save means and SD
-Number2 = [1:(numel(files)+1)];
-peaks = [Number2' radius' sigma1' pvalue' usage];
-for i=1:(numel(files)+1)
-peaks2(i,:) = [i curve2{i}.R curve2{i}.sigma gof2{i}.rsquare usage(i)];
-end
-cd('STORMcsv/result/');
-csvwrite('radiuses.csv', peaks);
-cd('../../');
 
-cd('STORMcsv/result/');
-csvwrite('radiuses_curve.csv', peaks2);
-cd('../../');
+peaks2 = zeros(numel(files)+1,6);
+Number2 = 1:(numel(files)+1);
+ClusterNumber = [ClusterNumber'; 0];
+peaks = [Number2' radius' sigma1' pvalue' ClusterNumber usage];
+for i=1:(numel(files)+1)
+peaks2(i,:) = [i curve2{i}.R curve2{i}.sigma gof2{i}.rsquare ClusterNumber(i) usage(i)];
+end
+
+cd(resultdir);
+headers = {'ring', 'radius', 'width', 'p-value', 'Number of clusters','Used in sum?'};
+csvwrite_with_headers('radiuses.csv', peaks, headers);
+csvwrite_with_headers('radiuses_curve.csv', peaks2, headers);
+cd(currdir);
 
 
 %% Making summarized ring
+% creating empty image and specifying its center
 final_ring = zeros(length(bincenter)*2,length(bincenter)*2);
 final_ring_fitted = zeros(length(bincenter)*2,length(bincenter)*2);
-[columnsInImage rowsInImage] = meshgrid(1:(length(bincenter)*2), 1:(length(bincenter)*2));
-
+[columnsInImage, rowsInImage] = meshgrid(1:(length(bincenter)*2), 1:(length(bincenter)*2));
 centerX2 = length(bincenter);
 centerY2 = length(bincenter);
+
+%Drowing the ring
 sum_intensity = [sum_intensity; zeros(ceil(sqrt(2*length(bincenter)*length(bincenter))-length(sum_intensity))+1, 1)];
 for l=1:(length(bincenter)*2)
     for n = 1:(length(bincenter)*2)
@@ -56,14 +77,15 @@ for l=1:(length(bincenter)*2)
     end
 end
 
+%Saving image
 image3 = figure;
 imshow(final_ring);
 image4 = figure;
 imshow(final_ring_fitted);
-cd('STORMcsv/result/');
+cd(resultdir);
 print(image3, 'summarized_ring.tif', '-dtiff', '-r150');
 print(image4, 'summarized_ring_fitted.tif', '-dtiff', '-r150');
-cd('../../');
+cd(currdir);
 
 %STORMcsvangle;
 

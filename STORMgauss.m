@@ -1,8 +1,21 @@
 %% Individual distributions and gaussian
-dist_length = ceil(max(Rfit)*2);
-binrange = [0 : bin_size : dist_length];
-bincenter=binrange(1:(end-1)) + bin_size/2;
 
+%% Assign memory
+dist_length = ceil(max(Rfit)*2);
+binrange = 0 : bin_size : dist_length;
+bincenter=binrange(1:(end-1)) + bin_size/2;
+distances_added_norm = double(zeros(length(bincenter),numel(files)+1));
+
+p = struct([]);
+curve = struct([]);
+gof = struct([]);
+
+radius = zeros(1, numel(files));
+sigma1 = zeros(1, numel(files));
+pvalue = zeros(1, numel(files));
+good_ring = zeros(1, numel(files));
+
+%% Obtaining distributions of signal from the center
 for i=1:numel(files)
     clear distances_indexed distances_added
     [N, bins] = histc(distances{i},binrange);
@@ -28,7 +41,7 @@ end
 %% Getting the radius individual rings and selecting rings
 image1 = figure;
 counter = 0;
-binsnew = [1:length(bincenter)];
+binsnew = 1:length(bincenter);
 usage = zeros(numel(files)+1,1);
 
 for i=1:numel(files)
@@ -74,9 +87,8 @@ subplot(4, ceil(numel(files)/4),numel(files)+1);
 plot(binsnew'*bin_size, p{numel(files)+1}, 'o', binsnew'*bin_size, curve{numel(files)+1}(binsnew'*bin_size));
 title(num2str(gof{numel(files)+1}.rsquare));
 
-cd('STORMcsv/');
-mkdir('result');
-cd('result/');
+%% Writing output file with distributions
+cd(resultdir);
 print(image1, 'summarized_distributions.tif', '-dtiff', '-r150');
 csvwrite('distributions.csv', peaks);
-cd('../../');
+cd(currdir);
