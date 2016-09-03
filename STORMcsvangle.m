@@ -66,10 +66,6 @@ end
 NAngles2 = histc(Angles_all,binrangeAngles);
 
 Data_angles = [binrangeAngles' NAngles NAngles2];
-cd(resultdir);
-headers = {'Angle', 'cluters with 2 removed', 'clusters all'};
-csvwrite_with_headers('angles_clusters.csv', Data_angles, headers);
-cd(currdir);
 
 %% Alternative approach by making circular distribution
 
@@ -159,11 +155,15 @@ angle_distribution(:,2) = angle_distribution(:,2)/sum(angle_distribution(:,2));
 
 %% Saving data
 cd(resultdir);
+headers = {'Angle', 'cluters with 2 removed', 'clusters all'};
+csvwrite_with_headers('angles_clusters.csv', Data_angles, headers);
 image5 = figure; 
 bar(angle_distribution(:,1), angle_distribution(:,2));
-print(image5, 'peaks_destribution.tif', '-dtiff', '-r150');
+print(image5, 'peaks_distribution.tif', '-dtiff', '-r150');
 image6 = figure; 
 bar(anglerange(1:(end-1)), distributions_reshaped(:,numel(files)+2));
-print(image6, 'aligned_destribution.tif', '-dtiff', '-r150');
+print(image6, 'aligned_distribution.tif', '-dtiff', '-r150');
 csvwrite('distributions_circular.csv',distributions_reshaped);
+headers = {'Angle', 'Number of peaks'};
+csvwrite_with_headers('peaks_distribution.csv', angle_distribution, headers);
 cd(currdir);

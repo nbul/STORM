@@ -90,5 +90,5 @@ title(num2str(gof{numel(files)+1}.rsquare));
 %% Writing output file with distributions
 cd(resultdir);
 print(image1, 'summarized_distributions.tif', '-dtiff', '-r150');
-csvwrite('distributions_radial.csv', peaks);
+csvwrite('distributions_radial.csv', distances_added_norm);
 cd(currdir);

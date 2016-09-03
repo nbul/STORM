@@ -26,5 +26,4 @@ title(num2str(gof2{numel(files)+1}.rsquare));
 
 cd(resultdir);
 print(image2, 'summarized_distributions_modified.tif', '-dtiff', '-r150');
-csvwrite('distributions.csv', peaks);
 cd(currdir);
