@@ -25,6 +25,6 @@ plot(binsnew'*bin_size, p{numel(files)+1}, 'o', binsnew'*bin_size, curve2{numel(
 title(num2str(gof2{numel(files)+1}.rsquare));
 
 cd(resultdir);
-print(image1, 'summarized_distributions_modified.tif', '-dtiff', '-r150');
+print(image2, 'summarized_distributions_modified.tif', '-dtiff', '-r150');
 csvwrite('distributions.csv', peaks);
 cd(currdir);

@@ -30,7 +30,7 @@ all_peaks_range = 0 : binAnlges : 360;
 distributions = zeros(length(anglerange), numel(files)+1);
 distributions_reshaped = zeros(length(anglerange)-1, numel(files)+2);
 profile_all = zeros(180,1);
-
+all_peaks = [0, 0];
 
 %% Pairwise angles between clusters (with removed 2 clusters from each ring)
 counter = 0;
@@ -67,8 +67,7 @@ NAngles2 = histc(Angles_all,binrangeAngles);
 
 Data_angles = [binrangeAngles' NAngles NAngles2];
 cd(resultdir);
-headers = {'Angle', 'cluters with 2 removed', 'clusters all'};
-csvwrite_with_headers('angles_clusters.csv', Data_angles, headers);
+csvwrite('angles.csv', Data_angles)
 cd(currdir);
 
 %% Alternative approach by making circular distribution
@@ -145,7 +144,7 @@ for i=1:numel(files)
     end
 end
 all_peaks = sortrows(all_peaks,1);
-%getting distribution of all peaks by intensity
+%getting 
 angle_distribution = zeros(length(all_peaks_range)-1,2);
 angle_distribution(:,1) = all_peaks_range(1:end-1);
 for m = 2:length(all_peaks_range)
@@ -165,5 +164,4 @@ print(image5, 'peaks_destribution.tif', '-dtiff', '-r150');
 image6 = figure; 
 bar(anglerange(1:(end-1)), distributions_reshaped(:,numel(files)+2));
 print(image6, 'aligned_destribution.tif', '-dtiff', '-r150');
-csvwrite('distributions_circular.csv',distributions_reshaped);
 cd(currdir);

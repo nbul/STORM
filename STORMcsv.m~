@@ -17,13 +17,11 @@ Column_intensity = 18;
 
 usedefault = questdlg(strcat('Use default settings: (Cut-off value = ', num2str(cutoff),'?);(Intensity column = ', num2str(Column_intensity),'?)'),'Settings','Yes','No','Yes');
 if strcmp(usedefault, 'No');
-    parameters = inputdlg({'Enter cut-off value:', 'Intensity column:'},'Parameters',1,{num2str(cutoff), num2str(Column_intensity)});
+    parameters = inputdlg({'Enter cut-off value:'},'Parameters',1,{num2str(cutoff)});
     % Redefine extension 
     cutoff = str2double(parameters{1});
-    Column_intensity = str2double(parameters{2});
 else
     parameters{1} = num2str(cutoff);
-    parameters{2} = num2str(Column_intensity);
 end
 
 %% Determening paths
