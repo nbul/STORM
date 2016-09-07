@@ -67,6 +67,7 @@ end
 
 %% Determening paths
 currdir = pwd;
+addpath(pwd);
 filedir = uigetdir();
 files = dir(strcat(filedir,'/*.csv'));
 cd(filedir);
