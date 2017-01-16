@@ -12,6 +12,7 @@ coordinates = struct([]);
 Cluster = struct([]);
 Centroid = struct([]);
 coordinates2 = struct([]);
+coordinates3 = struct([]);
 IntensityCluster = struct([]);
 
 
@@ -104,9 +105,23 @@ for i=1:numel(files)
     end
 end
 
+%% Splitting proportianally to the signal
+for i=1:numel(files)
+    
+    k = 1;
+    for o=1:length(Ring{i})
+        m=ceil(Ring{i}(o,18)/100);
+        for f=1:m
+            coordinates3{i}(k,:) = coordinates2{i}(o,:);
+            k=k+1;
+        end
+    end
+    
+end
+
 %% Fitting clusters with lines and finding distance
 for i=1:numel(files)
-    Line1 = polyfit(coordinates2{i}(coordinates2{i}(:,3)==Index(i),1),coordinates2{i}(coordinates2{i}(:,3)==Index(i),2), 1);
+    Line1 = polyfit(coordinates3{i}(coordinates3{i}(:,3)==Index(i),1),coordinates3{i}(coordinates3{i}(:,3)==Index(i),2), 1);
     image2 = figure;
     plot(coordinates2{i}(coordinates2{i}(:,3)==1,1),coordinates2{i}(coordinates2{i}(:,3)==1,2), 'r*');
     hold on
@@ -117,7 +132,7 @@ for i=1:numel(files)
     plot(x1, y1 , '-b', 'LineWidth',3);
     hold on;
     ft = fittype('a*x + b','coefficients','b','independent','x','problem','a');
-    Line2 = fit(coordinates2{i}(coordinates2{i}(:,3)~=Index(i),1),coordinates2{i}(coordinates2{i}(:,3)~=Index(i),2), ft, 'problem',Line1(1,1));
+    Line2 = fit(coordinates3{i}(coordinates3{i}(:,3)~=Index(i),1),coordinates3{i}(coordinates3{i}(:,3)~=Index(i),2), ft, 'problem',Line1(1,1));
     x2 = min(coordinates2{i}(coordinates2{i}(:,3)~=Index(i),1)):0.005:max(coordinates2{i}(coordinates2{i}(:,3)~=Index(i),1));
     y2 = Line2.a*x2 + Line2.b;
     plot(x2, y2 , '-b', 'LineWidth',3);
