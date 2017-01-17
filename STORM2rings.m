@@ -50,9 +50,9 @@ for i=1:numel(files)
     coordinates{i} = [Ring{i}(:,3) Ring{i}(:,4)];
 end
 
-Sigma = 'full';
+Sigma = 'full'; % possible to change to 'diagonal'
 nSigma = numel(Sigma);
-SharedCovariance = false;
+SharedCovariance = false; % possible to change to 'true'
 threshold = sqrt(chi2inv(0.99,2));
 options = statset('MaxIter',1000);
 
