@@ -5,7 +5,7 @@ dist_length = ceil(max(Rfit)*2);
 binrange = 0 : bin_size : dist_length;
 bincenter=binrange(1:(end-1)) + bin_size/2;
 distances_added_norm = double(zeros(length(bincenter),numel(files)+1));
-distances_added_norm2 = double(zeros(length(bincenter),numel(files)+1));
+
 
 p = struct([]);
 curve = struct([]);
@@ -68,13 +68,13 @@ for i=1:numel(files)
     
 end        
 %% Getting summarized distribution
+sum_intensity = zeros(length(bincenter),1);
 
 
-for i=1:numel(files)
+for i=1:numel(files)+1
     distances_added_norm2(:,i+1) = distances_added_norm(:,i+1) * usage(i);
 end
-
-sum_intensity = sum(distances_added_norm2,2) / sum(usage);
+sum_intensity = sum_intensity / sum(usage(i));
 distances_added_norm(:,numel(files)+1) = sum_intensity;
 
 p{numel(files)+1} = sum_intensity / sum(sum_intensity);
