@@ -6,7 +6,10 @@ gof2 = struct([]);
 image2 = figure;
 
 %% Fitting options and equation
-fo = fitoptions('Method','NonlinearLeastSquares', 'StartPoint', [curve{numel(files)+1}.a1 sigma1(numel(files)+1) curve{numel(files)+1}.b1]);
+fo = fitoptions('Method','NonlinearLeastSquares',...
+    'Lower', [0.1, bin_size, bin_size],...
+    'Upper', [10,length(binsnew)*bin_size, length(binsnew)*bin_size,],...
+    'StartPoint', [curve{numel(files)+1}.a1 sigma1(numel(files)+1) curve{numel(files)+1}.b1]);
 ft = fittype('2*pi*A*exp(-(x*x + R*R)/(2*sigma*sigma))*besseli(0, (R*x/(sigma*sigma)))',...
     'coefficients',{'A','sigma', 'R'},'independent','x','options',fo);
 
@@ -27,3 +30,4 @@ title(num2str(gof2{numel(files)+1}.rsquare));
 cd(resultdir);
 print(image2, 'summarized_distributions_modified.tif', '-dtiff', '-r150');
 cd(currdir);
+
