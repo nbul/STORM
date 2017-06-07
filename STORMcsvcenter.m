@@ -10,6 +10,7 @@ Rfit = zeros(1, numel(files));
 R_square_2 = zeros(1, numel(files));
 R_square_all = zeros(1, numel(files));
 RemoveIdx1 = zeros(2, numel(files));
+usage = zeros(1,1);
 
 Ring = struct([]);
 Cluster = struct([]);
