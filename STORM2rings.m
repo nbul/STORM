@@ -188,9 +188,20 @@ for n=1:length(coordinates_all)
        final_lines(ceil((coordinates_all(n,2)+max(max(abs(coordinates_all(:,1:2)))))/bin_size)+1,...
        ceil((coordinates_all(n,1)+max(max(abs(coordinates_all(:,1:2)))))/bin_size)+1) + coordinates_all(n,3);
 end
+
 final = mtimes(sum(final_lines,2),sum(final_lines,1));
+cd(resultdir);
+image1 = figure;
 imshow(final, [0, max(max(final))]);
+print(image1, 'averaged_image.tif', '-dtiff', '-r150');
+image2 = figure;
+imshow(final_lines, [0, max(max(final_lines))]);
+print(image2, 'summed_image.tif', '-dtiff', '-r150');
+image3 = figure;
 [fit_line, gof_line] = fit((1:bin_size:size(final_lines,2)*2)',sum(final_lines,2), 'gauss2');
 plot((1:bin_size:size(final_lines,2)*2)', sum(final_lines,2), 'o',...
     (1:bin_size:size(final_lines,2)*2)', fit_line((1:bin_size:size(final_lines,2)*2)'),'r');
-cd(pwd);
+print(image3, 'fitted_image.tif', '-dtiff', '-r150');
+cd(currdir);
+clear variables
+close all
