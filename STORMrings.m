@@ -3,7 +3,7 @@
 peaks2 = zeros(numel(files)+1,6);
 Number2 = 1:(numel(files)+1);
 ClusterNumber = [ClusterNumber'; 0];
-peaks = [Number2' radius' sigma1' pvalue' ClusterNumber usage];
+peaks = [Number2' radius' sigma1' pvalue' ClusterNumber usage'];
 for i=1:(numel(files)+1)
 peaks2(i,:) = [i curve2{i}.R curve2{i}.sigma gof2{i}.rsquare ClusterNumber(i) usage(i)];
 end
