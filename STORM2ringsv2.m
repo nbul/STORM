@@ -18,7 +18,7 @@ IntensityCluster = struct([]);
 
 usedefault = questdlg(strcat('Use default settings: (Cut-off value = ', num2str(cutoff),'?);(Intensity column = ',...
     num2str(Column_intensity),'?)'),'Settings','Yes','No','Yes');
-if strcmp(usedefault, 'No');
+if strcmp(usedefault, 'No')
     parameters = inputdlg({'Enter cut-off value:','Enter intensity column:'},'Parameters',1,...
         {num2str(cutoff), num2str(Column_intensity)});
     % Redefine extension
@@ -44,7 +44,6 @@ linedir = [resultdir,'/Lines'];
 
 
 Index = zeros(numel(files),1);
-Distance = zeros(numel(files),1);
 Line1 = zeros(numel(files),2);
 Line2 = zeros(numel(files),2);
 
@@ -69,7 +68,7 @@ for l=1:numel(files)
     [x1grid,x2grid] = meshgrid(x1,x2);
     X0 = [x1grid(:) x2grid(:)];
     i = 0;
-    while i == 0;
+    while i == 0
         image1 = figure;
         gmfit = fitgmdist(coordinates{l}(:,1:2),k,'CovarianceType',Sigma,...
             'SharedCovariance',SharedCovariance,'Options',options);
@@ -78,7 +77,7 @@ for l=1:numel(files)
         coordinates2{l} = [coordinates{l} clusterX];
         h1 = gscatter(coordinates{l}(:,1),coordinates{l}(:,2),clusterX);
         hold on;
-        for m = 1:k;
+        for m = 1:k
             idx = mahalDist(:,m)<=threshold;
             Color = h1(m).Color*0.75 + -0.5*(h1(m).Color - 1);
             h2 = plot(X0(idx,1),X0(idx,2),'.','Color',Color,'MarkerSize',1);
@@ -87,7 +86,7 @@ for l=1:numel(files)
         plot(gmfit.mu(:,1),gmfit.mu(:,2),'kx','LineWidth',2,'MarkerSize',10)
         
         usedefault = questdlg(strcat('Are you happy about clustering)'),'Settings','Yes','No','Yes');
-        if strcmp(usedefault, 'Yes');
+        if strcmp(usedefault, 'Yes')
             i=1;
             cd(clustdir);
             print(image1, [num2str(l),'_cluster.tif'], '-dtiff', '-r150');
