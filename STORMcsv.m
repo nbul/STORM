@@ -57,7 +57,7 @@ Column_intensity = 18;
 
 usedefault = questdlg(strcat('Use default settings: (Cut-off value = ', num2str(cutoff),'?);(Cut-off value for circle= ',...
     num2str(cutoff2),'?);(Intensity column = ', num2str(Column_intensity),'?)'),'Settings','Yes','No','Yes');
-if strcmp(usedefault, 'No');
+if strcmp(usedefault, 'No')
     parameters = inputdlg({'Enter cut-off value:','Enter cut-off value for circle', 'Intensity column:'},...
         'Parameters',1,{num2str(cutoff), num2str(cutoff2), num2str(Column_intensity)});
     % Redefine extension

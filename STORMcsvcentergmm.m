@@ -22,8 +22,14 @@ coordinates2 = struct([]);
 distances = struct([]);
 
 
-cd(filedir);
+Sigma = 'full'; % possible to change to 'diagonal'
+nSigma = numel(Sigma);
+SharedCovariance = true; % possible to change to 'true'
+threshold = sqrt(chi2inv(0.99,2));
+options = statset('MaxIter',1000);
 
+cd(filedir);
+d = 500;
 for i=1:numel(files)
     %% Reading files and all coordinates
     Number1 = [num2str(i),'.csv'];
@@ -35,12 +41,34 @@ for i=1:numel(files)
         clear test_k silh;
         coordinates{i} = [Ring{i}(:,3) Ring{i}(:,4)];
         for q=6:15
-            test_k = kmeans(coordinates{i},q);
-            silh(q-5) = mean(silhouette(coordinates{i},test_k));
+            gmfit = fitgmdist(coordinates{i}(:,1:2),q,'CovarianceType',Sigma,...
+            'SharedCovariance',SharedCovariance,'Options',options);
+            AIC(q-5)= gmfit.AIC;
+            %             test_k = kmeans(coordinates{i},q);
+            %             silh(q-5) = mean(silhouette(coordinates{i},test_k));
         end
-        [num1, idx1] = max(silh);
+        [num1, idx1] = min(AIC);
         ClusterNumber(i) = idx1+7;
-        [Cluster{i}, Centroid{i}]= kmeans(coordinates{i},ClusterNumber(i));
+        x1 = linspace(min(coordinates{i}(:,1)) - 2,max(coordinates{i}(:,1)) + 2,d);
+        x2 = linspace(min(coordinates{i}(:,2)) - 2,max(coordinates{i}(:,2)) + 2,d);
+        [x1grid,x2grid] = meshgrid(x1,x2);
+        X0 = [x1grid(:) x2grid(:)];
+        
+        clusterX = cluster(gmfit,coordinates{i}(:,1:2));
+        mahalDist = mahal(gmfit,X0);
+        coordinates2{i} = [coordinates{i} clusterX];
+        h1 = gscatter(coordinates{i}(:,1),coordinates{i}(:,2),clusterX);
+        hold on;
+        for m = 1:ClusterNumber(i)
+            idx = mahalDist(:,m)<=threshold;
+            Color = h1(m).Color*0.75 + -0.5*(h1(m).Color - 1);
+            h2 = plot(X0(idx,1),X0(idx,2),'.','Color',Color,'MarkerSize',1);
+            uistack(h2,'bottom');
+        end
+        plot(gmfit.mu(:,1),gmfit.mu(:,2),'kx','LineWidth',2,'MarkerSize',10);
+        
+        
+%         [Cluster{i}, Centroid{i}]= kmeans(coordinates{i},ClusterNumber(i));
         Centroid2{i}= Centroid{i};
         coordinates2{i} = [Cluster{i} coordinates{i}];
         coordinates{i} = [Cluster{i} coordinates{i}];
@@ -135,6 +163,7 @@ for i=1:numel(files)
         hold off
         
         usedefault = questdlg(strcat('Are you happy about clustering)'),'Settings','Yes','No','Yes');
+        if strcmp(usedefault, 'Yes');
             l=1;
             cd(clustdir);
             print(image1, [num2str(i),'_cluster.tif'], '-dtiff', '-r150');
