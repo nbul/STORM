@@ -45,7 +45,7 @@ for i=1:numel(files)
         coordinates2{i} = [Cluster{i} coordinates{i}];
         coordinates{i} = [Cluster{i} coordinates{i}];
         
-        
+                      
         %% Identifying cluster intensities
         
         IntensityCluster{i}=zeros(ClusterNumber(i),1);
@@ -135,6 +135,7 @@ for i=1:numel(files)
         hold off
         
         usedefault = questdlg(strcat('Are you happy about clustering)'),'Settings','Yes','No','Yes');
+        if strcmp(usedefault, 'Yes')
             l=1;
             cd(clustdir);
             print(image1, [num2str(i),'_cluster.tif'], '-dtiff', '-r150');
