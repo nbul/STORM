@@ -5,7 +5,8 @@ close all
 
 %% Defining extension
 % Default cutoff
-cutoff =0.80;
+cutoff =0.60;
+cutoff2 =0.30;
 Column_intensity = 18;
 Ring = struct([]);
 coordinates = struct([]);
@@ -13,20 +14,31 @@ Cluster = struct([]);
 Centroid = struct([]);
 coordinates2 = struct([]);
 coordinates3 = struct([]);
+coordinates4 = struct([]);
 IntensityCluster = struct([]);
 
 
-usedefault = questdlg(strcat('Use default settings: (Cut-off value = ', num2str(cutoff),'?);(Intensity column = ',...
+usedefault = questdlg(strcat('Use default settings: (Cut-off value = ', num2str(cutoff),'?);Cut-off value2 = ',...
+    num2str(cutoff2),'?);(Intensity column = ',...
     num2str(Column_intensity),'?)'),'Settings','Yes','No','Yes');
 if strcmp(usedefault, 'No')
-    parameters = inputdlg({'Enter cut-off value:','Enter intensity column:'},'Parameters',1,...
-        {num2str(cutoff), num2str(Column_intensity)});
+    parameters = inputdlg({'Enter cut-off value:','Enter cut-off value2:','Enter intensity column:'},'Parameters',1,...
+        {num2str(cutoff),num2str(cutoff2), num2str(Column_intensity)});
     % Redefine extension
     cutoff = str2double(parameters{1});
-    Column_intensity = str2double(parameters{2});
+    cutoff2 = str2double(parameters{2});
+    Column_intensity = str2double(parameters{3});
 else
     parameters{1} = num2str(cutoff);
-    parameters{2} = num2str(Column_intensity);
+    parameters{2} = num2str(cutoff2);
+    parameters{3} = num2str(Column_intensity);
+end
+
+usedefault2 = questdlg(strcat('Do you want to rotate and crop the data?'),'Settings','Yes','No','No');
+if strcmp(usedefault2, 'No')
+    choice = 1;
+else
+    choice = 0;
 end
 
 %% Determening paths
@@ -70,14 +82,24 @@ for l=1:numel(files)
     [x1grid,x2grid] = meshgrid(x1,x2);
     X0 = [x1grid(:) x2grid(:)];
     i = 0;
+    t = 1;
+    %% Splitting proportianally to the signal
+    for o=1:length(Ring{l})
+        m=ceil(Ring{l}(o,18)/100);
+        for f=1:m
+            coordinates4{l}(t,:) = coordinates{l}(o,:);
+            t=t+1;
+        end
+    end
     while i == 0
         image1 = figure;
-        gmfit = fitgmdist(coordinates{l}(:,1:2),k,'CovarianceType',Sigma,...
+        axis equal; 
+        gmfit = fitgmdist(coordinates4{l}(:,1:2),k,'CovarianceType',Sigma,...
             'SharedCovariance',SharedCovariance,'Options',options);
-        clusterX = cluster(gmfit,coordinates{l}(:,1:2));
+        clusterX = cluster(gmfit,coordinates4{l}(:,1:2));
         mahalDist = mahal(gmfit,X0);
-        coordinates2{l} = [coordinates{l} clusterX];
-        h1 = gscatter(coordinates{l}(:,1),coordinates{l}(:,2),clusterX);
+        coordinates3{l} = [coordinates4{l} clusterX];
+        h1 = gscatter(coordinates4{l}(:,1),coordinates4{l}(:,2),clusterX);
         hold on;
         for m = 1:k
             idx = mahalDist(:,m)<=threshold;
@@ -97,22 +119,14 @@ for l=1:numel(files)
         close all;
     end
     %% Identifying a brighter cluster for fit
-        IntensityCluster{l}(1) = sum(coordinates2{l}(coordinates2{l}(:,4)==1,3));
-    IntensityCluster{l}(2) = sum(coordinates2{l}(coordinates2{l}(:,4)==2,3));
+    IntensityCluster{l}(1) = length(coordinates3{l}(coordinates3{l}(:,4)==1,3));
+    IntensityCluster{l}(2) = length(coordinates3{l}(coordinates3{l}(:,4)==2,3));
     if IntensityCluster{l}(1)>IntensityCluster{l}(2)
         Index(l) = 1;
     else
         Index(l) = 2;
     end
-    %% Splitting proportianally to the signal
-      t = 1;
-    for o=1:length(Ring{l})
-        m=ceil(Ring{l}(o,18)/100);
-        for f=1:m
-            coordinates3{l}(t,:) = coordinates2{l}(o,:);
-            t=t+1;
-        end
-    end
+
     %% Determining rotation angle and shift
     mu=mean(coordinates3{l}(coordinates3{l}(:,4)==Index(l),1:2),1);
     mu2=mean(coordinates3{l}(coordinates3{l}(:,4)~=Index(l),1:2),1);
@@ -124,17 +138,21 @@ for l=1:numel(files)
     Center(l,:) = (mean(coordinates3{l}(coordinates3{l}(:,4)==Index(l),1:2),1) +...
         mean(coordinates3{l}(coordinates3{l}(:,4)~=Index(l),1:2),1))/2;
     image12 = figure;
-    h2 = gscatter(coordinates{l}(:,1),coordinates{l}(:,2),clusterX);
+    
+    h2 = gscatter(coordinates3{l}(:,1),coordinates3{l}(:,2),clusterX);
     hold on;
-    x3 = min(coordinates2{l}(coordinates2{l}(:,4)==Index(l),1)):0.005:max(coordinates2{l}(coordinates2{l}(:,4)==Index(l),1));
+    x3 = min(coordinates3{l}(coordinates3{l}(:,4)==Index(l),1)):0.005:max(coordinates3{l}(coordinates3{l}(:,4)==Index(l),1));
     y3 = tand(rotation(l))*x3 + (mu(2)-tand(rotation(l))*mu(1));
     h3 = plot(x3, y3 , '-k', 'LineWidth',3);
     hold on;
-    x4 = min(coordinates2{l}(coordinates2{l}(:,4)~=Index(l),1)):0.005:max(coordinates2{l}(coordinates2{l}(:,4)~=Index(l),1));
+    x4 = min(coordinates3{l}(coordinates3{l}(:,4)~=Index(l),1)):0.005:max(coordinates3{l}(coordinates3{l}(:,4)~=Index(l),1));
     y4 = tand(rotation(l))*x4 + (mu2(2)-tand(rotation(l))*mu2(1));
     h4 = plot(x4, y4 , '-k', 'LineWidth',3);
     hold on;
     h5 = plot(Center(l,1),Center(l,2),'kx','LineWidth',2,'MarkerSize',10);
+    axis equal;
+    xlim([min(coordinates3{l}(:,1)) max(coordinates3{l}(:,1))]);
+    ylim([min(coordinates3{l}(:,2)) max(coordinates3{l}(:,2))]);
     legend(h2);
     cd(clustdir);
     print(image12, [num2str(l),'_cluster_lines.tif'], '-dtiff', '-r150');
@@ -152,15 +170,19 @@ coordinates_all = zeros(1,3);
 for i=1:numel(files)
     
     R = [cosd(-rotation(i)) -sind(-rotation(i)); sind(-rotation(i)) cosd(-rotation(i))];
-    Center_mat_border = repmat([Center(i,1); Center(i,2)], 1, length(coordinates2{i}))';
+    Center_mat_border = repmat([Center(i,1); Center(i,2)], 1, length(coordinates3{i}))';
     
-    coordinates_rot1{i} = coordinates2{i}(:,1:2) - Center_mat_border;
+    coordinates_rot1{i} = coordinates3{i}(:,1:2) - Center_mat_border;
     coordinates_rot1{i} = (R* coordinates_rot1{i}')';
-    coordinates_rot1{i}(:,3) = coordinates2{i}(:,3);
+    coordinates_rot1{i}(:,3) = coordinates3{i}(:,3);
     
     coordinates_all = [coordinates_all;coordinates_rot1{i}(:,1:3)];
 end
 coordinates_all(coordinates_all(:,3) ==0,:) =[];
+
+if choice == 0
+    rotatecrop;
+end
 
 %% Individual distributions and distances
 bin_size = 2;
@@ -177,13 +199,13 @@ curve2 = struct([]);
 gof2 = struct([]);
 image1 = figure;
 Distance = zeros(numel(files),7);
-options = fitoptions('gauss2','Lower', [0 0 0 0 dist_length 0],...
-        'Upper', [Inf dist_length Inf Inf dist_length*2 Inf]);
-for i=1:numel(files)
+for i=1:numel(files)   
     Dist(:,i)=histcounts(coordinates_rot1{i}(:,2),binrange-dist_length)';
     Dist(:,i)=  Dist(:,i) / sum( Dist(:,i));
     Dist2(:,i)=histcounts(coordinates_rot1{i}(:,1),binrange-dist_length)';
     Dist2(:,i)=  Dist2(:,i) / sum( Dist2(:,i));
+    options = fitoptions('gauss2','Lower', [max(Dist(:,i))/5 0 15 max(Dist(:,i))/5 dist_length 15],...
+        'Upper', [max(Dist(:,i)) dist_length dist_length max(Dist(:,i)) dist_length*2 dist_length]);
     [curve1{i},gof1{i}] = fit(bincenter',Dist(:,i),'gauss2',options);
     [curve2{i},gof2{i}] = fit(bincenter',Dist(end:-1:1,i),'gauss2',options);
     if gof1{i}.rsquare>gof2{i}.rsquare
