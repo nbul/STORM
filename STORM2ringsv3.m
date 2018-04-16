@@ -47,12 +47,25 @@ addpath(pwd);
 filedir = uigetdir();
 files = dir(strcat(filedir,'/*.csv'));
 cd(filedir);
-mkdir(filedir,'/results');
+if exist([filedir,'/results'],'dir') == 0
+    mkdir(filedir,'/results');
+end
 resultdir = [filedir, '/results'];
-mkdir(resultdir,'/Clustering');
-clustdir = [resultdir,'/Clustering'];
-mkdir(resultdir,'/Lines');
-linedir = [resultdir,'/Lines'];
+
+if exist([filedir,'/Clustering'],'dir') == 0
+    mkdir(filedir,'/Clustering');
+end
+clustdir = [filedir,'/Clustering'];
+
+if exist([filedir,'/Lines'],'dir') == 0
+    mkdir(filedir,'/Lines');
+end
+linedir = [filedir,'/Lines'];
+
+if exist([filedir,'/Distributions'],'dir') == 0
+    mkdir(filedir,'/Distributions');
+end
+distdir = [filedir,'/Distributions'];
 
 
 Index = zeros(numel(files),1);
@@ -109,6 +122,7 @@ for l=1:numel(files)
         end
         plot(gmfit.mu(:,1),gmfit.mu(:,2),'kx','LineWidth',2,'MarkerSize',10);
         legend(h1);
+        title(num2str(l));
         usedefault = questdlg(strcat('Are you happy about clustering)'),'Settings','Yes','No','Yes');
         if strcmp(usedefault, 'Yes')
             i=1;
@@ -176,7 +190,7 @@ for i=1:numel(files)
     coordinates_rot1{i} = (R* coordinates_rot1{i}')';
     coordinates_rot1{i}(:,3) = coordinates3{i}(:,3);
     
-    coordinates_all = [coordinates_all;coordinates_rot1{i}(:,1:3)];
+    coordinates_all = [coordinates_all;coordinates_rot1{i}(:,1:3)]; %#ok<AGROW>
 end
 coordinates_all(coordinates_all(:,3) ==0,:) =[];
 
@@ -187,43 +201,37 @@ end
 %% Individual distributions and distances
 bin_size = 2;
 dist_length = max(max(abs(coordinates_all(:,1:2))));
-binrange = 0 : bin_size : (dist_length*2);
+binrange = -dist_length : bin_size : dist_length;
 bincenter=binrange(1:(end-1)) + bin_size/2;
 Dist = zeros(length(bincenter),numel(files)+1);
-Dist2 = zeros(length(bincenter),numel(files)+1);
+Dist3 = zeros(length(bincenter),numel(files)+1);
 curve = struct([]);
 gof = struct([]);
-curve1 = struct([]);
-gof1 = struct([]);
-curve2 = struct([]);
-gof2 = struct([]);
-image1 = figure;
 Distance = zeros(numel(files),7);
+cd(distdir);
+warning('off','all');
 for i=1:numel(files)   
-    Dist(:,i)=histcounts(coordinates_rot1{i}(:,2),binrange-dist_length)';
+    Dist(:,i)=histcounts(coordinates_rot1{i}(:,2),binrange)';
     Dist(:,i)=  Dist(:,i) / sum( Dist(:,i));
-    Dist2(:,i)=histcounts(coordinates_rot1{i}(:,1),binrange-dist_length)';
-    Dist2(:,i)=  Dist2(:,i) / sum( Dist2(:,i));
-    options = fitoptions('gauss2','Lower', [max(Dist(:,i))/5 0 15 max(Dist(:,i))/5 dist_length 15],...
-        'Upper', [max(Dist(:,i)) dist_length dist_length max(Dist(:,i)) dist_length*2 dist_length]);
-    [curve1{i},gof1{i}] = fit(bincenter',Dist(:,i),'gauss2',options);
-    [curve2{i},gof2{i}] = fit(bincenter',Dist(end:-1:1,i),'gauss2',options);
-    if gof1{i}.rsquare>gof2{i}.rsquare
-        curve{i} = curve1{i};
-        gof{i} = gof1{i};
-    else
-        curve{i} = curve2{i};
-        gof{i} = gof2{i};
-        Dist(:,i) = Dist(end:-1:1,i);
-    end
-    subplot(4, ceil(numel(files)/4),i);
+    Dist3(:,i)=histcounts(coordinates_rot1{i}(:,1),binrange)';
+    Dist3(:,i)=  Dist3(:,i) / sum( Dist3(:,i));
+    Y = Dist(:,i);
+    X = bincenter';
+    Dist2 = [X,Y];
+    Dist2 = Dist2(find(Dist2(:,2),1,'first'):find(Dist2(:,2),1,'last'),:);
+    options2 = fitoptions('gauss2','Lower', [max(Dist(:,i))/5 min(Dist2(:,1)) 15 max(Dist(:,i))/5 0 15],...
+        'Upper', [max(Dist(:,i)) 0 max(Dist2(:,1))/2 max(Dist(:,i)) max(Dist2(:,1)) max(Dist2(:,1))/2],...
+        'Robust','LAR');
+    [curve{i},gof{i}] = fit(Dist2(:,1),Dist2(:,2),'gauss2',options2);
+    image1 = figure;
     plot(bincenter', Dist(:,i), 'o',...
         bincenter', curve{i}(bincenter'),'r');
     title(num2str(gof{i}.rsquare));
     if gof{i}.rsquare>cutoff
         Distance(i,7) = 1;
     end 
-    
+
+    print(image1, [num2str(i),'_distribution.tif'], '-dtiff', '-r150');    
     Distance(i,1) = curve{i}.b1;
     Distance(i,2) = curve{i}.c1;
     Distance(i,3) = curve{i}.b2;
@@ -231,7 +239,8 @@ for i=1:numel(files)
     Distance(i,5) = gof{i}.rsquare;
     Distance(i,6) = abs(curve{i}.b1-curve{i}.b2);
 end
-
+close all;
+cd(currdir);
 Filenames = 1:1:numel(files);
 Distance2 = [Filenames' Distance];
 cd(resultdir);
@@ -246,6 +255,9 @@ for n=1:length(coordinates_all)
        final_lines(ceil((coordinates_all(n,2)+max(max(abs(coordinates_all(:,1:2)))))/bin_size)+1,...
        ceil((coordinates_all(n,1)+max(max(abs(coordinates_all(:,1:2)))))/bin_size)+1) + coordinates_all(n,3);
 end
+final_lines = imadjust(double(final_lines/max(final_lines(:))));
+final_lines = imgaussfilt(final_lines,2);
+final_lines = imadjust(final_lines);
 image2 = figure;
 imshow(final_lines, [0, max(max(final_lines))]);
 print(image2, 'summed_image.tif', '-dtiff', '-r150');
@@ -254,15 +266,14 @@ print(image2, 'summed_image.tif', '-dtiff', '-r150');
 for i=1:numel(files)
     if Distance(i,7) == 1
         Dist(:,numel(files)+1) = Dist(:,numel(files)+1) + Dist(:,i);
-        Dist2(:,numel(files)+1) = Dist2(:,numel(files)+1) + Dist2(:,i);
+        Dist3(:,numel(files)+1) = Dist3(:,numel(files)+1) + Dist3(:,i);
     end
 end
 Dist(:,numel(files)+1)=  Dist(:,numel(files)+1) / sum( Dist(:,numel(files)+1));
-Dist2(:,numel(files)+1)=  Dist2(:,numel(files)+1) / sum( Dist2(:,numel(files)+1));
+Dist3(:,numel(files)+1)=  Dist3(:,numel(files)+1) / sum( Dist3(:,numel(files)+1));
 
-final = mtimes(Dist(:,numel(files)+1),Dist2(:,numel(files)+1)');
+final = mtimes(Dist(:,numel(files)+1),Dist3(:,numel(files)+1)');
 cd(resultdir);
-print(image1, 'Distributions.tif', '-dtiff', '-r150');
 image3 = figure;
 imshow(final, [0, max(max(final))]);
 print(image3, 'averaged_image.tif', '-dtiff', '-r150');

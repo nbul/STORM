@@ -18,7 +18,7 @@ IntensityCluster = struct([]);
 
 usedefault = questdlg(strcat('Use default settings: (Intensity column = ',...
     num2str(Column_intensity),'?)'),'Settings','Yes','No','Yes');
-if strcmp(usedefault, 'No');
+if strcmp(usedefault, 'No')
     parameters = inputdlg({'Enter intensity column:'},'Parameters',1, {num2str(Column_intensity)});
     % Redefine extension
     Column_intensity = str2double(parameters{1});
@@ -32,12 +32,27 @@ addpath(pwd);
 filedir = uigetdir();
 files = dir(strcat(filedir,'/*.csv'));
 cd(filedir);
-mkdir(filedir,'/results');
+
+if exist([filedir,'/results'],'dir') == 0
+    mkdir(filedir,'/results');
+end
 resultdir = [filedir, '/results'];
-mkdir(resultdir,'/Clustering');
+
+if exist([filedir,'/Clustering'],'dir') == 0
+    mkdir(filedir,'/Clustering');
+end
 clustdir = [resultdir,'/Clustering'];
-mkdir(resultdir,'/Lines');
+
+if exist([filedir,'/Lines'],'dir') == 0
+    mkdir(filedir,'/Lines');
+end
 linedir = [resultdir,'/Lines'];
+
+if exist([filedir,'/Distributions'],'dir') == 0
+    mkdir(filedir,'/Distributions');
+end
+distdir = [resultdir,'/Distributions'];
+
 
 
 Index = zeros(numel(files),1);
