@@ -44,18 +44,34 @@ for l=5:1:50
     [pks2,locs2] = findpeaks(norm2',line');
     
     tail1 = [line(line>locs1(2))', norm1(line>locs1(2))'];
-    tailtemp1 = flipud(tail1);
-    tailtemp1(:,1) = tail1(:,1) - tail1(end,1) + tail1(1,1);
+    tailtemp1 = flipud(tail1(2:end,:));
+    tailtemp1(:,1) = tail1(1,1) - flipud(abs(tail1(2:end,1) - tail1(1,1)));
     tail1final = [tail1;tailtemp1];
+    tail1final = sortrows(tail1final);
     tail1final(tail1final(:,2) < max(tail1final(:,2))/2,:) = [];
-    halfwidth1 = max(tail1final(:,1)) - min(tail1final(:,1));
+    fittail1 = fit(tail1final(:,1),tail1final(:,2),'poly2');
+    r1 = roots([fittail1.p1 fittail1.p2 fittail1.p3]);
+    m1 = (r1(1) + r1(2))/2;
+    h1 = fittail1.p1*m1^2 + fittail1.p2*m1 + fittail1.p3;
+    syms x;
+    eqn1 = fittail1.p1*x^2 + fittail1.p2*x + fittail1.p3 == h1/2;
+    solx1 = double(solve(eqn1,x));
+    halfwidth1 = abs(solx1(1)-solx1(2));
     
     tail2 = [line(line>locs2(2))', norm2(line>locs2(2))'];
-    tailtemp2 = flipud(tail2);
-    tailtemp2(:,1) = tail2(:,1) - tail2(end,1) + tail2(1,1);
+    tailtemp2 = flipud(tail2(2:end,:));
+    tailtemp2(:,1) = tail2(1,1) - flipud(abs(tail2(2:end,1) - tail2(1,1)));
     tail2final = [tail2;tailtemp2];
+    tail2final = sortrows(tail2final);
     tail2final(tail2final(:,2) < max(tail2final(:,2))/2,:) = [];
-    halfwidth2 = max(tail2final(:,1)) - min(tail2final(:,1));
+    fittail2 = fit(tail2final(:,1),tail2final(:,2),'poly2');
+    r2 = roots([fittail2.p1 fittail2.p2 fittail2.p3]);
+    m2 = (r2(1) + r2(2))/2;
+    h2 = fittail2.p1*m2^2 + fittail2.p2*m2 + fittail2.p3;
+    syms x;
+    eqn2 = fittail2.p1*x^2 + fittail2.p2*x + fittail2.p3 == h2/2;
+    solx2 = double(solve(eqn2,x));
+    halfwidth2 = abs(solx2(1)-solx2(2));
     
     result(counter,:) = [l, radius(1), locs1(2), halfwidth1, radius(2), locs2(2),...
         halfwidth2, radius(2)-radius(1), locs2(2)-locs1(2)];
