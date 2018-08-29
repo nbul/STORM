@@ -5,10 +5,27 @@ close all;
 currdir = pwd;
 addpath(pwd);
 
-res_dir = '/Volumes/DataGurdon/Khodor Hazime/STORMmodel';
-im_dir = '/Volumes/DataGurdon/Khodor Hazime/STORMmodel/images';
+res_dir = uigetdir();
 
-radius = [92, 183];
+if exist([res_dir,'/images'],'dir') == 0
+    mkdir(res_dir,'/images');
+end
+im_dir = [res_dir, '/images'];
+
+radius = [50, 91.5];
+
+usedefault = questdlg(strcat('Use default settings: radius1 = ', num2str(radius(1)),...
+    '; radius2 =',num2str(radius(2)),'?'),'Settings','Yes','No','Yes');
+if strcmp(usedefault, 'No')
+    parameters = inputdlg({'Radius 1:', 'Radius 2:'},...
+        'Parameters',1,{num2str(radius(1)), num2str(radius(2))});
+    % Redefine extension
+    radius(1) = str2double(parameters{1});
+    radius(2) = str2double(parameters{2});
+else
+    parameters{1} = num2str(radius(1));
+    parameters{2} = num2str(radius(2));
+end
 
 angles = 0:40:320;
 
@@ -43,21 +60,27 @@ for l=5:1:50
     [pks1,locs1] = findpeaks(norm1',line');
     [pks2,locs2] = findpeaks(norm2',line');
     
-    tail1 = [line(line>locs1(2))', norm1(line>locs1(2))'];
-    tailtemp1 = flipud(tail1(2:end,:));
-    tailtemp1(:,1) = tail1(1,1) - flipud(abs(tail1(2:end,1) - tail1(1,1)));
-    tail1final = [tail1;tailtemp1];
-    tail1final = sortrows(tail1final);
-    tail1final(tail1final(:,2) < max(tail1final(:,2))/2,:) = [];
-    fittail1 = fit(tail1final(:,1),tail1final(:,2),'poly2');
-    r1 = roots([fittail1.p1 fittail1.p2 fittail1.p3]);
-    m1 = (r1(1) + r1(2))/2;
-    h1 = fittail1.p1*m1^2 + fittail1.p2*m1 + fittail1.p3;
-    syms x;
-    eqn1 = fittail1.p1*x^2 + fittail1.p2*x + fittail1.p3 == h1/2;
-    solx1 = double(solve(eqn1,x));
-    halfwidth1 = abs(solx1(1)-solx1(2));
+    if length(pks1)>1
+        tail1 = [line(line>locs1(2))', norm1(line>locs1(2))'];
+        tailtemp1 = flipud(tail1(2:end,:));
+        tailtemp1(:,1) = tail1(1,1) - flipud(abs(tail1(2:end,1) - tail1(1,1)));
+        tail1final = [tail1;tailtemp1];
+        tail1final = sortrows(tail1final);
+        tail1final(tail1final(:,2) < max(tail1final(:,2))/2,:) = [];
+        fittail1 = fit(tail1final(:,1),tail1final(:,2),'poly2');
+        r1 = roots([fittail1.p1 fittail1.p2 fittail1.p3]);
+        m1 = (r1(1) + r1(2))/2;
+        h1 = fittail1.p1*m1^2 + fittail1.p2*m1 + fittail1.p3;
+        syms x;
+        eqn1 = fittail1.p1*x^2 + fittail1.p2*x + fittail1.p3 == h1/2;
+        solx1 = double(solve(eqn1,x));
+        halfwidth1 = abs(solx1(1)-solx1(2));
+    else
+        halfwidth1 = 0;
+        m1 = 0;
+    end
     
+    if length(pks2) > 1
     tail2 = [line(line>locs2(2))', norm2(line>locs2(2))'];
     tailtemp2 = flipud(tail2(2:end,:));
     tailtemp2(:,1) = tail2(1,1) - flipud(abs(tail2(2:end,1) - tail2(1,1)));
@@ -72,9 +95,13 @@ for l=5:1:50
     eqn2 = fittail2.p1*x^2 + fittail2.p2*x + fittail2.p3 == h2/2;
     solx2 = double(solve(eqn2,x));
     halfwidth2 = abs(solx2(1)-solx2(2));
+    else
+        m2 = 0;
+        halfwidth2 = 0;
+    end
     
-    result(counter,:) = [l, radius(1), locs1(2), halfwidth1, radius(2), locs2(2),...
-        halfwidth2, radius(2)-radius(1), locs2(2)-locs1(2)];
+    result(counter,:) = [l, radius(1), m1, halfwidth1, radius(2), m2,...
+        halfwidth2, radius(2)-radius(1), m2-m1];
     image = figure;
     plot(line', norm2'/max(norm2), 'r', line', norm1'/max(norm1), 'b', 'LineWidth', 2);
     ax = gca;

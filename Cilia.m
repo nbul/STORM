@@ -9,8 +9,22 @@ addpath(pwd);
 filedir = uigetdir();
 files = dir(strcat(filedir,'/*.csv'));
 cd(filedir);
-mkdir(filedir,'/results');
+
+if exist([filedir,'/results'],'dir') == 0
+    mkdir(filedir,'/results');
+end
 resultdir = [filedir, '/results'];
+
+bin_size = 8;
+usedefault = questdlg(strcat('Use default settings: (binsize = ', num2str(bin_size),'?)'),'Settings','Yes','No','Yes');
+if strcmp(usedefault, 'No')
+    parameters = inputdlg({'Enter binsize:'},...
+        'Parameters',1,{num2str(bin_size)});
+    % Redefine extension
+    bin_size = str2double(parameters{1});
+else
+    parameters{1} = num2str(bin_size);
+end
 
 Signal = struct([]);
 coordinates = struct([]);
@@ -62,8 +76,6 @@ end
 coordinates_all(coordinates_all(:,3) ==0,:) =[];
 
 %% Projection and distribution
-
-bin_size = 8;
 dist_length = max(abs(coordinates_all(:,2)));
 binrange = -dist_length : bin_size : dist_length;
 bincenter=binrange(1:(end-1)) + bin_size/2;
@@ -77,27 +89,27 @@ end
 Dist(:,numel(files)+1) = histcounts(coordinates_all,binrange)';
 Dist(:,numel(files)+1)=  Dist(:,numel(files)+1) / sum( Dist(:,numel(files)+1));
 
-for i = 2:length(bincenter)-1
+for i = 3:length(bincenter)-2
     Dist(i,numel(files)+1) = (Dist(i,numel(files)+1) + Dist(i-1,numel(files)+1) +...
-        Dist(i+1,numel(files)+1))/3;
+        Dist(i+1,numel(files)+1) + (Dist(i+2,numel(files)+1) + Dist(i-2,numel(files)+1)))/5;
 end
-Dist(1,:) = [];
-Dist(end,:) = [];
+Dist(1:2,:) = [];
+Dist(end-1:end,:) = [];
 Dist(:,numel(files)+1) = (Dist(:,numel(files)+1) + flipud(Dist(:,numel(files)+1)))/2;
+[pks,locs, w, p] = findpeaks(Dist(:,numel(files)+1),bincenter(3:end-2)', 'MinPeakProminence', 0.005);
+
 image = figure;
-plot(bincenter(2:end-1)',Dist(:,numel(files)+1), [-mean(abs(locs)), mean(abs(locs))], pks, 'o', 'LineWidth', 2);
+plot(bincenter(3:end-2)',Dist(:,numel(files)+1), [-mean(abs(locs)), mean(abs(locs))], pks, 'o', 'LineWidth', 2);
 ax = gca;
 ax.YAxis.Visible = 'off';
 ax.FontSize = 16;
 ax.XAxis.Label.String = 'Distance from center (nm)';
 ax.XAxis.Label.FontSize = 20;
+cd(resultdir);
+print(image, 'Distribution.tif', '-dtiff', '-r150');
 
-Image = figure;
-plot(bincenter(2:end-1)',Dist(:,numel(files)+1));
 
-[pks,locs, w, p] = findpeaks(Dist(:,numel(files)+1),bincenter(2:end-1)', 'MinPeakProminence', 0.005);
-
-line = bincenter(2:end-1)';
+line = bincenter(3:end-2)';
 norm1 = Dist(:,numel(files)+1);
 tail = [line(line>=locs(2)), norm1(line>=locs(2))];
 tailtemp = flipud(tail(2:end,:));
@@ -114,5 +126,10 @@ eqn = fittail.p1*x^2 + fittail.p2*x + fittail.p3 == h/2;
 solx = double(solve(eqn,x));
 halfwidth = abs(solx(1)-solx(2));
 
+csvwrite_with_headers('result.csv',[m, halfwidth],{'distance', 'halfwidth'});
 
+cd(currdir);
+close all;
+clear variables;
+clc;
 
